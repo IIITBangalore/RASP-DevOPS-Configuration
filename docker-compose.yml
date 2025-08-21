@@ -1,0 +1,84 @@
+services:
+  keycloakdb:
+    image: postgres:latest
+    container_name: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: keycloak_db_user
+      POSTGRES_PASSWORD: keycloak_db_user_password
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    command:
+      - start-dev
+      - --import-realm
+    ports:
+      - "4000:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloakdb:5432/keycloak_db
+      KC_DB_USERNAME: keycloak_db_user
+      KC_DB_PASSWORD: keycloak_db_user_password
+    depends_on:
+      - keycloakdb
+    volumes:
+      - ./keycloak_realm_data:/opt/keycloak/data/import
+
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: visual_app_design
+    restart: unless-stopped
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # mongo:
+  #   image: mongo:latest # You can use any version you prefer
+  #   container_name: mongodb
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: example
+  #   volumes:
+  #     - mongo_data:/data/db
+
+  rasp-designer-fe:
+    image: 172.16.202.56:5000/rasp-designer-fe:latest
+    container_name: rasp-designer-fe
+    ports:
+      - "80:80"
+    env_file:
+      - ./rasp-fe/Drag-Drop(RFE)/.env
+    depends_on:
+      - keycloak
+      - rasp-designer-be
+
+  rasp-designer-be:
+    image: 172.16.202.56:5000/rasp-designer-be:latest
+    container_name: rasp-designer-be
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./rasp-fe/Drag-Drop(RBE)/.env.example
+    depends_on:
+      - keycloak
+      - mysql
+  # rasp-rbac:
+  #   image: 172.16.202.56:5000/rasp-rbac:latest
+  #   container_name: rasp-rbac
+  #   ports:
+  #     - "8082:8082"
+
+volumes:
+  mysql_data:
+  postgres_data: # mongo_data:
