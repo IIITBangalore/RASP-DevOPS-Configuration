@@ -66,8 +66,8 @@ services:
     container_name: rasp-designer-fe
     # ports:
     #   - "80:80"
-    env_file:
-      - ./rasp-fe/Drag-Drop(RFE)/.env
+    # env_file:
+    #   - ./rasp-fe/Drag-Drop(RFE)/.env
     depends_on:
       - keycloak
       - rasp-designer-be
@@ -108,19 +108,19 @@ services:
   #   ports:
   #     - "8082:8082"
 
-  twingate-jenkins-rasp:
-    image: twingate/connector:1
-    container_name: twingate-jenkins-rasp
-    restart: unless-stopped
-    pull_policy: always
-    sysctls:
-      net.ipv4.ping_group_range: "0 2147483647"
-    environment:
-      TWINGATE_NETWORK: "rlshah03"
-      TWINGATE_ACCESS_TOKEN: "${TWINGATE_ACCESS_TOKEN}"
-      TWINGATE_REFRESH_TOKEN: "${TWINGATE_REFRESH_TOKEN}"
-      TWINGATE_LABEL_HOSTNAME: "`hostname`"
-      TWINGATE_LABEL_DEPLOYED_BY: "docker"
+  # twingate-jenkins-rasp:
+  #   image: twingate/connector:1
+  #   container_name: twingate-jenkins-rasp
+  #   restart: unless-stopped
+  #   pull_policy: always
+  #   sysctls:
+  #     net.ipv4.ping_group_range: "0 2147483647"
+  #   environment:
+  #     TWINGATE_NETWORK: "rlshah03"
+  #     TWINGATE_ACCESS_TOKEN: "${TWINGATE_ACCESS_TOKEN}"
+  #     TWINGATE_REFRESH_TOKEN: "${TWINGATE_REFRESH_TOKEN}"
+  #     TWINGATE_LABEL_HOSTNAME: "`hostname`"
+  #     TWINGATE_LABEL_DEPLOYED_BY: "docker"
 
   traefik:
     image: docker.io/library/traefik:v3.5.1
