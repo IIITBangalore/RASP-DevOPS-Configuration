@@ -50,16 +50,18 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
 
-  # mongo:
-  #   image: mongo:latest # You can use any version you prefer
-  #   container_name: mongodb
-  #   ports:
-  #     - "27017:27017"
-  #   environment:
-  #     MONGO_INITDB_ROOT_USERNAME: root
-  #     MONGO_INITDB_ROOT_PASSWORD: example
-  #   volumes:
-  #     - mongo_data:/data/db
+  mongo:
+    image: mongo:latest # You can use any version you prefer
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - default
+        # environment:
+        #   MONGO_INITDB_ROOT_USERNAME: root
+        #   MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongo_data:/data/db
 
   rasp-designer-fe:
     image: 172.16.202.56:5000/rasp-designer-fe:latest
@@ -91,6 +93,7 @@ services:
     depends_on:
       - keycloak
       - mysql
+      - rasp-rbac
     networks:
       - traefik-reverse-proxy
       - default
@@ -102,11 +105,17 @@ services:
       - traefik.http.routers.rasp-be-https.rule=Host(`rasp-be.roh.it.com`)
       - traefik.http.services.rasp-be-https.loadbalancer.server.port=8000
 
-  # rasp-rbac:
-  #   image: 172.16.202.56:5000/rasp-rbac:latest
-  #   container_name: rasp-rbac
-  #   ports:
-  #     - "8082:8082"
+  rasp-rbac:
+    image: 172.16.202.56:5000/rasp-rbac:latest
+    container_name: rasp-rbac
+    # ports:
+    #   - "8082:8082"
+    networks:
+      - default
+    env_file:
+      - ./RASP-RBAC/.env
+    depends_on:
+      - mongo
 
   # twingate-jenkins-rasp:
   #   image: twingate/connector:1
@@ -144,7 +153,8 @@ services:
 volumes:
   mysql_data:
   postgres_data:
-    # mongo_data:
+  mongo_data:
+
 
 networks:
   traefik-reverse-proxy:
