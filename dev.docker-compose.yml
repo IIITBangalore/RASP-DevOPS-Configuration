@@ -1,0 +1,179 @@
+services:
+  keycloakdb:
+    image: postgres:latest
+    container_name: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: keycloak_db_user
+      POSTGRES_PASSWORD: keycloak_db_user_password
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    command: start-dev --import-realm --proxy-headers xforwarded # proxy headers to allow request to pass through traefik
+    # ports:
+    #   - "4000:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloakdb:5432/keycloak_db
+      KC_DB_USERNAME: keycloak_db_user
+      KC_DB_PASSWORD: keycloak_db_user_password
+      KC_HOSTNAME: rasp-keycloak.localhost # ! <-- set this to your domain
+    depends_on:
+      - keycloakdb
+    volumes:
+      - ./dev_keycloak_realm_data:/opt/keycloak/data/import
+    networks:
+      - traefik-reverse-proxy
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.rule=Host(`rasp-keycloak.localhost`)"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls=true"
+      # - "traefik.http.routers.keycloak.tls.options=default@file" # If using static certs from file
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080" # Port of your actual application
+
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: visual_app_design
+    restart: unless-stopped
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  mongo:
+    image: mongo:latest # You can use any version you prefer
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - default
+        # environment:
+        #   MONGO_INITDB_ROOT_USERNAME: root
+        #   MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongo_data:/data/db
+
+  traefik:
+    image: docker.io/library/traefik:v3.5.1
+    container_name: traefik
+    ports:
+      - 80:80
+      - 443:443
+      # --> (Optional) Enable Dashboard, don't do in production
+      - 8008:8080
+      # <--
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/dev.traefik.yaml:/etc/traefik/traefik.yml:ro
+      - ./certs:/etc/certs:ro # Mount your certificates here
+    networks:
+      - traefik-reverse-proxy
+    restart: unless-stopped
+
+  rasp-designer-fe:
+    image: 172.16.202.56:5000/rasp-designer-fe:dev
+    container_name: rasp-designer-fe
+    # ports:
+    #   - "80:80"
+    depends_on:
+      - keycloak
+      - rasp-designer-be
+    networks:
+      - traefik-reverse-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rasp-designer-fe.rule=Host(`rasp-designer-fe.localhost`)"
+      - "traefik.http.routers.rasp-designer-fe.entrypoints=websecure"
+      - "traefik.http.routers.rasp-designer-fe.tls=true"
+      # - "traefik.http.routers.rasp-designer-fe.tls.options=default@file" # If using static certs from file
+      - "traefik.http.services.rasp-designer-fe.loadbalancer.server.port=80" # Port of your actual application
+
+  rasp-designer-be:
+    image: 172.16.202.56:5000/rasp-designer-be:latest
+    container_name: rasp-designer-be
+    # ports:
+    #   - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql://root:root@mysql:3306/visual_app_design
+      - KEYCLOAK_URL=https://rasp-keycloak.localhost
+      - KEYCLOAK_SERVICE_URL=https://rasp-keycloak.localhost
+      # - KEYCLOAK_SERVICE_URL=https://rasp-keycloak.localhost:8080
+      - REALM=myRealm
+      - CLIENT_ID=adi-rest-api
+      - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
+      - REDIRECT_CALLBACK_HOST=https://rasp-designer-be.localhost
+      - FRONTEND_PORT=80
+      - FRONTEND_URL=https://rasp-designer-fe.localhost
+      - NODE_ENV=production
+      - COOKIE_DOMAIN=.localhost
+      - API_HOSTNAME=rasp-rbac
+      - API_PORT=8082
+      # ! NEVER PROVIDE THIS IN PROD AS it makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+    # ! required to resolve dns entry of rasp-keycloak.localhost
+    extra_hosts:
+      - "rasp-keycloak.localhost:host-gateway"
+
+    # Login flow
+    # /login (backend) -> keycloak -> auth/callback (backend) -> frontend
+    depends_on:
+      - keycloak
+      - mysql
+      - rasp-rbac
+    networks:
+      - traefik-reverse-proxy
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rasp-designer-be.rule=Host(`rasp-designer-be.localhost`)"
+      - "traefik.http.routers.rasp-designer-be.entrypoints=websecure"
+      - "traefik.http.routers.rasp-designer-be.tls=true"
+      # - "traefik.http.routers.rasp-designer-be.tls.options=default@file" # If using static certs from file
+      - "traefik.http.services.rasp-designer-be.loadbalancer.server.port=8000" # Port of your actual application
+
+  rasp-rbac:
+    image: 172.16.202.56:5000/rasp-rbac:latest
+    container_name: rasp-rbac
+    # ports:
+    #   - "8082:8082"
+    networks:
+      - default
+    # env_file:
+    #   - ./RASP-RBAC/.env
+    environment:
+      - CLIENT_ID=adi-rest-api
+      - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
+      - DEMO_RASP_BACKEND=/app
+      - DMS_HOST=https://rasp-dms.localhost
+      - DMS_PORT=443
+      - FRONTEND_URL=https://rasp-designer-fe.localhost
+      - KEYCLOAK_HOST=https://rasp-keycloak.localhost
+      - KEYCLOAK_PORT=443
+      - RASP_GENERATED_PROJECT=/app/target/
+      - REALM=myRealm
+      - SERVER_HOST=http://localhost
+      - SERVER_PORT=8082
+      - DB_SERVER=mongo
+      - DB_PORT=27017
+    depends_on:
+      - mongo
+
+volumes:
+  mysql_data:
+  postgres_data:
+  mongo_data:
+  traefik_data:
+
+networks:
+  traefik-reverse-proxy:
+    external: true # <-- (Optional) Change this to false if you want to create a new network

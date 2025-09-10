@@ -1,0 +1,32 @@
+api:
+  dashboard: true
+  insecure: true # Not recommended for production
+
+entryPoints:
+  web:
+    address: ":80"
+    # Optional: uncomment to redirect http to https
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    network: traefik-reverse-proxy # Ensure this matches your Docker network name
+    exposedByDefault: false
+  file:
+    directory: /etc/traefik/
+    watch: true
+
+tls:
+  certificates:
+    - certFile: /etc/certs/rasp-designer-fe.localhost.pem
+      keyFile: /etc/certs/rasp-designer-fe.localhost-key.pem
+    - certFile: /etc/certs/rasp-designer-be.localhost.pem
+      keyFile: /etc/certs/rasp-designer-be.localhost-key.pem
+    - certFile: /etc/certs/rasp-keycloak.localhost.pem
+      keyFile: /etc/certs/rasp-keycloak.localhost-key.pem
