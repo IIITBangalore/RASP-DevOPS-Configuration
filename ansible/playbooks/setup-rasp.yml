@@ -1,0 +1,122 @@
+---
+- name: Setup RASP Platform (Remote Dev Host)
+  hosts: rasp-dev
+  become: yes
+  vars:
+    docker_registry: "172.16.202.56:5000"
+    docker_username: "rasp_user"
+    docker_password: "RaspPlatform@123"
+    docker_compose_file: "dev.docker-compose.yml"
+    user_name: "{{ ansible_user_id }}"
+    repo_path: "/home/{{ ansible_user }}/Desktop/RASP-DevOPS-Configuration"
+
+  tasks:
+    # -------------------------
+    # Install required dependencies
+    # -------------------------
+    - name: Install required dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker Engine and Compose
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add remote user to docker group
+      user:
+        name: "{{ user_name }}"
+        groups: docker
+        append: yes
+
+    - name: Ensure Desktop folder exists
+      file:
+        path: "/home/{{ user_name }}/Desktop"
+        state: directory
+        owner: "{{ user_name }}"
+        group: "{{ user_name }}"
+
+    - name: Clone RASP DevOps Configuration repo into Desktop
+      git:
+        repo: "https://github.com/IIITBangalore/RASP-DevOPS-Configuration.git"
+        dest: "{{ repo_path }}"
+        version: main
+      become: false
+      remote_user: "{{ user_name }}"
+
+    - name: Configure Docker daemon for insecure registry
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "insecure-registries" : ["172.16.202.56:5000"]
+          }
+      notify: Restart Docker
+
+    # -------------------------
+    # Docker tasks (run as root)
+    # -------------------------
+    - name: Log in to Docker registry
+      community.docker.docker_login:
+        registry_url: "http://{{ docker_registry }}"
+        username: "{{ docker_username }}"
+        password: "{{ docker_password }}"
+      become: true
+
+    - name: Pull required Docker images
+      community.docker.docker_compose_v2:
+        project_src: "{{ repo_path }}"
+        files:
+          - "{{ docker_compose_file }}"
+        pull: always
+      become: true
+
+    - name: Start services with Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ repo_path }}"
+        files:
+          - "{{ docker_compose_file }}"
+        state: present
+        recreate: auto
+      become: true
+
+    - name: Show access URLs
+      debug:
+        msg:
+          - "✅ Setup complete on {{ inventory_hostname }}"
+          - "Open Google Chrome and visit:"
+          - "http://localhost:80   (RASP Designer)"
+          - "http://localhost:9080 (Keycloak Dashboard)"
+
+  handlers:
+    - name: Restart Docker
+      service:
+        name: docker
+        state: restarted

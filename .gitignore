@@ -4,3 +4,4 @@ RASP-RBAC
 .env
 change.sh
 certs
+ansible/inventory
