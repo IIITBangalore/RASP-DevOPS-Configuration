@@ -5,3 +5,5 @@ RASP-RBAC
 change.sh
 certs
 ansible/inventory
+.DS_Store
+.vscode

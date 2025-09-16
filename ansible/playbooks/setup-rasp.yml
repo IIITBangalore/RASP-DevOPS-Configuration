@@ -21,8 +21,14 @@
           - ca-certificates
           - curl
           - software-properties-common
+          - wget
         state: present
         update_cache: yes
+
+    - name: Install Google Chrome
+      apt:
+        deb: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        state: present
 
     - name: Add Docker GPG apt Key
       apt_key:
