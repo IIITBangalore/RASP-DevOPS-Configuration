@@ -28,11 +28,22 @@ services:
       KC_DB_URL: jdbc:postgresql://keycloakdb:5432/keycloak_db
       KC_DB_USERNAME: keycloak_db_user
       KC_DB_PASSWORD: keycloak_db_user_password
+      KC_HEALTH_ENABLED: true
     depends_on:
       keycloakdb:
         condition: service_healthy
     volumes:
       - ./dev_keycloak_realm_data:/opt/keycloak/data/import
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep '200' <&3",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 7
+      start_period: 10s # initial delay before healthcheck starts
 
   mysql:
     image: mysql:latest
@@ -138,6 +149,8 @@ services:
       - DB_PORT=27017
     depends_on:
       mongo:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
 
 volumes:
