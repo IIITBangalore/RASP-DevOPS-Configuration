@@ -11,63 +11,63 @@
     repo_path: "/home/{{ ansible_user }}/Desktop/RASP-DevOPS-Configuration"
 
   tasks:
-    # # -------------------------
-    # # Install required dependencies
-    # # -------------------------
-    # - name: Install required dependencies
-    #   apt:
-    #     name:
-    #       - apt-transport-https
-    #       - ca-certificates
-    #       - curl
-    #       - software-properties-common
-    #       - wget
-    #     state: present
-    #     update_cache: yes
+    # -------------------------
+    # Install required dependencies
+    # -------------------------
+    - name: Install required dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - wget
+        state: present
+        update_cache: yes
 
-    # - name: Install Google Chrome
-    #   apt:
-    #     deb: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    #     state: present
+    - name: Install Google Chrome
+      apt:
+        deb: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        state: present
 
-    # - name: Add Docker GPG apt Key
-    #   apt_key:
-    #     url: https://download.docker.com/linux/ubuntu/gpg
-    #     state: present
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
 
-    # - name: Add Docker repository
-    #   apt_repository:
-    #     repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-    #     state: present
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
 
-    # - name: Install Docker Engine and Compose
-    #   apt:
-    #     name:
-    #       - docker-ce
-    #       - docker-ce-cli
-    #       - containerd.io
-    #       - docker-compose-plugin
-    #     state: present
-    #     update_cache: yes
+    - name: Install Docker Engine and Compose
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
 
-    # - name: Ensure Docker service is running
-    #   service:
-    #     name: docker
-    #     state: started
-    #     enabled: true
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: true
 
-    # - name: Add remote user to docker group
-    #   user:
-    #     name: "{{ user_name }}"
-    #     groups: docker
-    #     append: yes
+    - name: Add remote user to docker group
+      user:
+        name: "{{ user_name }}"
+        groups: docker
+        append: yes
 
-    # - name: Ensure Desktop folder exists
-    #   file:
-    #     path: "/home/{{ user_name }}/Desktop"
-    #     state: directory
-    #     owner: "{{ user_name }}"
-    #     group: "{{ user_name }}"
+    - name: Ensure Desktop folder exists
+      file:
+        path: "/home/{{ user_name }}/Desktop"
+        state: directory
+        owner: "{{ user_name }}"
+        group: "{{ user_name }}"
 
     - name: Clone RASP DevOps Configuration repo into Desktop
       git:

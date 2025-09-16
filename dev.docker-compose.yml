@@ -63,7 +63,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: visual_app_design
-    restart: unless-stopped
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
