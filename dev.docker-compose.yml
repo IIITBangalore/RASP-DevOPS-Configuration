@@ -8,6 +8,12 @@ services:
       POSTGRES_DB: keycloak_db
       POSTGRES_USER: keycloak_db_user
       POSTGRES_PASSWORD: keycloak_db_user_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak_db_user -d keycloak_db"]
+      interval: 3s # check every 3s
+      timeout: 2s # give each check 2s to respond
+      retries: 5 # fail only after 5 failed checks
+      start_period: 5s # initial delay before healthcheck starts
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
@@ -23,7 +29,8 @@ services:
       KC_DB_USERNAME: keycloak_db_user
       KC_DB_PASSWORD: keycloak_db_user_password
     depends_on:
-      - keycloakdb
+      keycloakdb:
+        condition: service_healthy
     volumes:
       - ./dev_keycloak_realm_data:/opt/keycloak/data/import
 
@@ -38,6 +45,13 @@ services:
     restart: unless-stopped
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot || exit 1"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
 
   mongo:
     image: mongo:latest # You can use any version you prefer
@@ -51,6 +65,12 @@ services:
         #   MONGO_INITDB_ROOT_PASSWORD: example
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
 
   rasp-designer-fe:
     image: 172.16.202.56:5000/rasp-designer-fe:dev
@@ -85,9 +105,12 @@ services:
     # Login flow
     # /login (backend) -> keycloak -> auth/callback (backend) -> frontend
     depends_on:
-      - keycloak
-      - mysql
-      - rasp-rbac
+      keycloak:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      rasp-rbac:
+        condition: service_started
 
   rasp-rbac:
     image: 172.16.202.56:5000/rasp-rbac:latest
@@ -112,7 +135,8 @@ services:
       - DB_SERVER=mongo
       - DB_PORT=27017
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
 
 volumes:
   mysql_data:
