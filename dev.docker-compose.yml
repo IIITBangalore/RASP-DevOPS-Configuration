@@ -125,8 +125,10 @@ services:
       - DEMO_RASP_BACKEND=/app
       - DMS_HOST=https://rasp-dms.localhost
       - DMS_PORT=443
-      - FRONTEND_URL=https://localhost:80
-      - KEYCLOAK_HOST=https://localhost:9080
+      - FRONTEND_URL=http://localhost:80
+      # TODO: check if this is only for fetch calls or also to redirect frontend to keycloak
+      # - KEYCLOAK_HOST=http://localhost:9080
+      - KEYCLOAK_HOST=http://keycloak:8080
       - KEYCLOAK_PORT=443
       - RASP_GENERATED_PROJECT=/app/target/
       - REALM=myRealm
