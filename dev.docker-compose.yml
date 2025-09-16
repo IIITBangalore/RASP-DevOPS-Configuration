@@ -9,11 +9,12 @@ services:
       POSTGRES_USER: keycloak_db_user
       POSTGRES_PASSWORD: keycloak_db_user_password
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak_db_user -d keycloak_db"]
+      test: [ "CMD-SHELL", "pg_isready -U keycloak_db_user -d keycloak_db" ]
       interval: 3s # check every 3s
       timeout: 2s # give each check 2s to respond
       retries: 5 # fail only after 5 failed checks
       start_period: 5s # initial delay before healthcheck starts
+    restart: unless-stopped
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
@@ -38,12 +39,21 @@ services:
       test:
         [
           "CMD-SHELL",
-          "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep '200' <&3",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r
+
+            Host: localhost\r
+
+            Connection: close\r
+
+            \r
+
+            ' >&3 && grep '200' <&3"
         ]
       interval: 10s
       timeout: 3s
       retries: 7
       start_period: 10s # initial delay before healthcheck starts
+    restart: unless-stopped
 
   mysql:
     image: mysql:latest
@@ -57,12 +67,12 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test:
-        ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot || exit 1"]
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot || exit 1" ]
       interval: 3s
       timeout: 2s
       retries: 5
       start_period: 5s
+    restart: unless-stopped
 
   mongo:
     image: mongo:latest # You can use any version you prefer
@@ -77,11 +87,12 @@ services:
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 3s
       timeout: 2s
       retries: 5
       start_period: 5s
+    restart: unless-stopped
 
   rasp-designer-fe:
     image: 172.16.202.56:5000/rasp-designer-fe:dev
@@ -91,6 +102,7 @@ services:
     depends_on:
       - keycloak
       - rasp-designer-be
+    restart: unless-stopped
 
   rasp-designer-be:
     image: 172.16.202.56:5000/rasp-designer-be:latest
@@ -122,6 +134,7 @@ services:
         condition: service_healthy
       rasp-rbac:
         condition: service_started
+    restart: unless-stopped
 
   rasp-rbac:
     image: 172.16.202.56:5000/rasp-rbac:latest
@@ -152,6 +165,7 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   mysql_data:
