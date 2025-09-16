@@ -1,6 +1,7 @@
 ---
 - name: Setup RASP Platform (Remote Dev Host)
   hosts: rasp-dev
+  # gather_facts: no
   become: yes
   vars:
     docker_registry: "172.16.202.56:5000"
@@ -84,7 +85,19 @@
           {
             "insecure-registries" : ["172.16.202.56:5000"]
           }
-      notify: Restart Docker
+
+    - name: Ensure DOCKER_OPTS points to /etc/docker/daemon.json
+      lineinfile:
+        path: /etc/default/docker
+        line: 'DOCKER_OPTS="--config-file=/etc/docker/daemon.json"'
+        insertafter: EOF
+        state: present
+        create: yes
+
+    - name: Restart Docker
+      service:
+        name: docker
+        state: restarted
 
     # -------------------------
     # Docker tasks (run as root)
@@ -101,7 +114,8 @@
         project_src: "{{ repo_path }}"
         files:
           - "{{ docker_compose_file }}"
-        pull: always
+        # TODO: Uncomment the line below to always pull the latest images from the registry
+        # pull: always
       become: true
 
     - name: Start services with Docker Compose
@@ -120,9 +134,3 @@
           - "Open Google Chrome and visit:"
           - "http://localhost:80   (RASP Designer)"
           - "http://localhost:9080 (Keycloak Dashboard)"
-
-  handlers:
-    - name: Restart Docker
-      service:
-        name: docker
-        state: restarted

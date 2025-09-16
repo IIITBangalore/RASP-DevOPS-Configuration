@@ -29,30 +29,29 @@ services:
       KC_DB_URL: jdbc:postgresql://keycloakdb:5432/keycloak_db
       KC_DB_USERNAME: keycloak_db_user
       KC_DB_PASSWORD: keycloak_db_user_password
-      KC_HEALTH_ENABLED: true
+      # KC_HEALTH_ENABLED: true
     depends_on:
       keycloakdb:
         condition: service_healthy
     volumes:
       - ./dev_keycloak_realm_data:/opt/keycloak/data/import
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r
+    # healthcheck:
+    #   test: [
+    #       "CMD-SHELL",
+    #       "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r
 
-            Host: localhost\r
+    #       Host: localhost\r
 
-            Connection: close\r
+    #       Connection: close\r
 
-            \r
+    #       \r
 
-            ' >&3 && grep '200' <&3"
-        ]
-      interval: 10s
-      timeout: 3s
-      retries: 7
-      start_period: 10s # initial delay before healthcheck starts
+    #       ' >&3 && grep '200' <&3",
+    #     ]
+    #   interval: 10s
+    #   timeout: 3s
+    #   retries: 7
+    #   start_period: 60s # initial delay before healthcheck starts
     restart: unless-stopped
 
   mysql:
@@ -140,6 +139,7 @@ services:
     container_name: rasp-rbac
     ports:
       - "9082:8082"
+    entrypoint: [ "sh", "-c", "sleep 90 && exec java -jar app.jar" ]
     networks:
       - default
     environment:
@@ -162,8 +162,8 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
-      keycloak:
-        condition: service_healthy
+      # keycloak:
+      #   condition: service_healthy
     restart: unless-stopped
 
 volumes:
