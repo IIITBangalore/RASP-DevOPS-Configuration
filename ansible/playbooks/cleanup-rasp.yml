@@ -1,0 +1,27 @@
+---
+- name: Stop and remove all Docker containers
+  hosts: rasp-dev
+  become: yes
+  tasks:
+    - name: Get host info
+      community.docker.docker_host_info:
+        containers: yes
+      register: docker_info
+
+    - name: Stop and remove all containers using docker compose
+      become: yes
+      shell: |
+        docker compose -f /home/{{ ansible_user }}/Desktop/RASP-DevOPS-Configuration/dev.docker-compose.yml down
+      ignore_errors: yes
+
+    - name: docker container ls -a
+      tags: container_ls
+      become: True
+      shell:
+        "docker container ls -a"
+      register: container_info
+
+    - name: docker container ls -a result
+      tags: container_ls
+      debug:
+        msg: "{{container_info.stdout_lines}}"
