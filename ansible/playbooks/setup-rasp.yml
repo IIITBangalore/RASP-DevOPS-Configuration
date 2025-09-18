@@ -12,9 +12,6 @@
     repo_path: "/home/{{ ansible_user }}/Desktop/RASP-DevOPS-Configuration"
 
   tasks:
-    # -------------------------
-    # Install required dependencies
-    # -------------------------
     - name: Install required dependencies
       apt:
         name:
@@ -99,9 +96,6 @@
         name: docker
         state: restarted
 
-    # # -------------------------
-    # # Docker tasks (run as root)
-    # # -------------------------
     - name: Log in to Docker registry
       community.docker.docker_login:
         registry_url: "http://{{ docker_registry }}"
@@ -130,7 +124,7 @@
     - name: Show access URLs
       debug:
         msg:
-          - "✅ Setup complete on {{ inventory_hostname }}"
+          - "Setup complete on {{ inventory_hostname }}"
           - "Open Google Chrome and visit:"
           - "http://localhost:80   (RASP Designer)"
           - "http://localhost:9080 (Keycloak Dashboard)"
