@@ -145,7 +145,7 @@ services:
     environment:
       - CLIENT_ID=adi-rest-api
       - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
-      - DEMO_RASP_BACKEND=/app
+      - DEMO_RASP_BACKEND=/app/rasp_backend
       - DMS_HOST=https://rasp-dms.localhost
       - DMS_PORT=443
       - FRONTEND_URL=http://localhost:80
@@ -153,7 +153,7 @@ services:
       # - KEYCLOAK_HOST=http://localhost:9080
       - KEYCLOAK_HOST=http://keycloak:8080
       - KEYCLOAK_PORT=443
-      - RASP_GENERATED_PROJECT=/app/target/
+      - RASP_GENERATED_PROJECT=/generated
       - REALM=myRealm
       - SERVER_HOST=http://localhost
       - SERVER_PORT=8082

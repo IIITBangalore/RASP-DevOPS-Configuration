@@ -99,9 +99,9 @@
         name: docker
         state: restarted
 
-    # -------------------------
-    # Docker tasks (run as root)
-    # -------------------------
+    # # -------------------------
+    # # Docker tasks (run as root)
+    # # -------------------------
     - name: Log in to Docker registry
       community.docker.docker_login:
         registry_url: "http://{{ docker_registry }}"
@@ -115,7 +115,7 @@
         files:
           - "{{ docker_compose_file }}"
         # TODO: Uncomment the line below to always pull the latest images from the registry
-        # pull: always
+        pull: always
       become: true
 
     - name: Start services with Docker Compose
