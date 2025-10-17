@@ -68,8 +68,13 @@ services:
     container_name: rasp-designer-fe
     # ports:
     #   - "80:80"
-    # env_file:
-    #   - ./rasp-fe/Drag-Drop(RFE)/.env
+    environment:
+      # ! Where your built files live in the container
+      - ASSET_DIR=/usr/share/nginx/html
+      # ! Prefix used for placeholder detection
+      - APP_PREFIX=MY_PREFIX_
+    env_file:
+      - ./rasp-fe/Drag-Drop(RFE)/.env
     depends_on:
       - keycloak
       - rasp-designer-be
