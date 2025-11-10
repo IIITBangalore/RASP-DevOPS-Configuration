@@ -12,6 +12,7 @@
     repo_path: "/home/{{ ansible_user }}/Desktop/RASP-DevOPS-Configuration"
 
   tasks:
+<<<<<<< Updated upstream
     - name: Install required dependencies
       apt:
         name:
@@ -32,40 +33,65 @@
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
+=======
+    # # -------------------------
+    # # Install required dependencies
+    # # -------------------------
+    # - name: Install required dependencies
+    #   apt:
+    #     name:
+    #       - apt-transport-https
+    #       - ca-certificates
+    #       - curl
+    #       - software-properties-common
+    #       - wget
+    #     state: present
+    #     update_cache: yes
 
-    - name: Add Docker repository
-      apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-        state: present
+    # - name: Install Google Chrome
+    #   apt:
+    #     deb: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    #     state: present
+>>>>>>> Stashed changes
 
-    - name: Install Docker Engine and Compose
-      apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-compose-plugin
-        state: present
-        update_cache: yes
+    # - name: Add Docker GPG apt Key
+    #   apt_key:
+    #     url: https://download.docker.com/linux/ubuntu/gpg
+    #     state: present
 
-    - name: Ensure Docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: true
+    # - name: Add Docker repository
+    #   apt_repository:
+    #     repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    #     state: present
 
-    - name: Add remote user to docker group
-      user:
-        name: "{{ user_name }}"
-        groups: docker
-        append: yes
+    # - name: Install Docker Engine and Compose
+    #   apt:
+    #     name:
+    #       - docker-ce
+    #       - docker-ce-cli
+    #       - containerd.io
+    #       - docker-compose-plugin
+    #     state: present
+    #     update_cache: yes
 
-    - name: Ensure Desktop folder exists
-      file:
-        path: "/home/{{ user_name }}/Desktop"
-        state: directory
-        owner: "{{ user_name }}"
-        group: "{{ user_name }}"
+    # - name: Ensure Docker service is running
+    #   service:
+    #     name: docker
+    #     state: started
+    #     enabled: true
+
+    # - name: Add remote user to docker group
+    #   user:
+    #     name: "{{ user_name }}"
+    #     groups: docker
+    #     append: yes
+
+    # - name: Ensure Desktop folder exists
+    #   file:
+    #     path: "/home/{{ user_name }}/Desktop"
+    #     state: directory
+    #     owner: "{{ user_name }}"
+    #     group: "{{ user_name }}"
 
     - name: Clone RASP DevOps Configuration repo into Desktop
       git:
@@ -82,6 +108,17 @@
           {
             "insecure-registries" : ["172.16.202.56:5000"]
           }
+<<<<<<< Updated upstream
+=======
+
+    - name: Add config-file option to DOCKER_OPTS
+      lineinfile:
+        path: /etc/default/docker
+        line: 'DOCKER_OPTS="--config-file=/etc/docker/daemon.json"'
+        create: yes
+      notify:
+        - Restart Docker
+>>>>>>> Stashed changes
 
     - name: Ensure DOCKER_OPTS points to /etc/docker/daemon.json
       lineinfile:

@@ -136,6 +136,29 @@ services:
   #     TWINGATE_LABEL_HOSTNAME: "`hostname`"
   #     TWINGATE_LABEL_DEPLOYED_BY: "docker"
 
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    restart: always
+    ports:
+      - "3001:3001" # This maps the container port "3001" to the host port "3001"
+    volumes:
+      - uptime_kuma:/app/data # Configuring persistent storage
+    environment:
+      - TZ=IST # Set the timezone (change to your preferred local timezone so monitoring times are the same)
+      # - UMASK=0022 # Set your file permissions manually
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3001" ]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   traefik:
     image: docker.io/library/traefik:v3.5.1
     container_name: traefik
@@ -159,6 +182,7 @@ volumes:
   mysql_data:
   postgres_data:
   mongo_data:
+  uptime_kuma:
 
 
 networks:

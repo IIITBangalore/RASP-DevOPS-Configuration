@@ -1,7 +1,7 @@
 #!/bin/bash
 
 cd "/home/ctri/Desktop/RASPutin/rasp-fe/Drag-Drop(RFE)"
-docker build -t 172.16.202.56:5000/rasp-designer-fe:dev .
+docker build -t 172.16.202.56:5000/rasp-designer-fe:latest .
 echo "Finished building RFE"
 
 cd "/home/ctri/Desktop/RASPutin/rasp-fe/Drag-Drop(RBE)"

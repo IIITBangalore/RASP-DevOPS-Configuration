@@ -4,6 +4,11 @@ cd "/home/ctri/Desktop/RASPutin/rasp-fe/Drag-Drop(RFE)"
 docker build -t 172.16.202.56:5000/rasp-designer-fe:latest .
 echo "Finished building RFE"
 
+# for designerFrontend inside RFE
+cd "/home/ctri/Desktop/RASPutin/rasp-fe/Drag-Drop(RFE)/designerFrontend(DFE)"
+docker build -t 172.16.202.56:5000/rasp-designer-fe:latest .
+echo "Finished building RFE"
+
 cd "/home/ctri/Desktop/RASPutin/rasp-fe/Drag-Drop(RBE)"
 docker build -t 172.16.202.56:5000/rasp-designer-be:latest .
 echo "Finished building RBE"

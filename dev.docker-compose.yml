@@ -29,30 +29,17 @@ services:
       KC_DB_URL: jdbc:postgresql://keycloakdb:5432/keycloak_db
       KC_DB_USERNAME: keycloak_db_user
       KC_DB_PASSWORD: keycloak_db_user_password
-      # KC_HEALTH_ENABLED: true
+      KC_HEALTH_ENABLED: true
     depends_on:
       keycloakdb:
         condition: service_healthy
     volumes:
       - ./dev_keycloak_realm_data:/opt/keycloak/data/import
-    # healthcheck:
-    #   test: [
-    #       "CMD-SHELL",
-    #       "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r
-
-    #       Host: localhost\r
-
-    #       Connection: close\r
-
-    #       \r
-
-    #       ' >&3 && grep '200' <&3",
-    #     ]
-    #   interval: 10s
-    #   timeout: 3s
-    #   retries: 7
-    #   start_period: 60s # initial delay before healthcheck starts
-    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', '[ -f /tmp/HealthCheck.java ] || echo "public class HealthCheck { public static void main(String[] args) throws java.lang.Throwable { System.exit(java.net.HttpURLConnection.HTTP_OK == ((java.net.HttpURLConnection)new java.net.URL(args[0]).openConnection()).getResponseCode() ? 0 : 1); } }" > /tmp/HealthCheck.java && java /tmp/HealthCheck.java http://localhost:8080/health/live']
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   mysql:
     image: mysql:latest
@@ -93,13 +80,21 @@ services:
     restart: unless-stopped
 
   rasp-designer-fe:
-    image: 172.16.202.56:5000/rasp-designer-fe:dev
+    image: 172.16.202.56:5000/rasp-designer-fe:latest
     container_name: rasp-designer-fe
     ports:
       - "80:80"
     depends_on:
       - keycloak
       - rasp-designer-be
+    environment:
+      # - REACT_APP_FRONTEND_URL=http://172.16.202.55:3000
+      - MY_PREFIX_REACT_APP_NODEJS_BACKEND_URL=http://172.16.202.55:9000
+      # - WDS_SOCKET_PORT=0
+      # ! Where your built files live in the container
+      - ASSET_DIR=/usr/share/nginx/html
+      # ! Prefix used for placeholder detection
+      - APP_PREFIX=MY_PREFIX_
     restart: unless-stopped
 
   rasp-designer-be:
@@ -108,21 +103,19 @@ services:
     ports:
       - "9000:8000"
     environment:
+      # ! NEVER PROVIDE THIS IN PROD AS it makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
       - DATABASE_URL=mysql://root:root@mysql:3306/visual_app_design
-      - KEYCLOAK_URL=http://localhost:9080
-      - KEYCLOAK_SERVICE_URL=http://keycloak:8080
+      - KEYCLOAK_URL=http://172.16.202.55:9080
       - REALM=myRealm
       - CLIENT_ID=adi-rest-api
       - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
-      - REDIRECT_CALLBACK_HOST=http://localhost:9000
-      - FRONTEND_PORT=80
-      - FRONTEND_URL=http://localhost
-      - NODE_ENV=development
-      - COOKIE_DOMAIN=.localhost
-      - API_HOSTNAME=rasp-rbac
-      - API_PORT=8082
-      # ! NEVER PROVIDE THIS IN PROD AS it makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - REDIRECT_URI=http://172.16.202.55:9000/auth/callback
+      - FRONTEND_URL=http://172.16.202.55
+      - SERVER_HOSTNAME=localhost
+      - SERVER_PORT=9000
+      - GENERATOR_URL=http://172.16.202.55:8082/api
+      - REACT_APP_URL=http://172.16.202.55:3001
     # Login flow
     # /login (backend) -> keycloak -> auth/callback (backend) -> frontend
     depends_on:
@@ -130,41 +123,41 @@ services:
         condition: service_started
       mysql:
         condition: service_healthy
-      rasp-rbac:
-        condition: service_started
+      # rasp-rbac:
+      #   condition: service_started
     restart: unless-stopped
 
-  rasp-rbac:
-    image: 172.16.202.56:5000/rasp-rbac:latest
-    container_name: rasp-rbac
-    ports:
-      - "9082:8082"
-    entrypoint: [ "sh", "-c", "sleep 90 && exec java -jar app.jar" ]
-    networks:
-      - default
-    environment:
-      - CLIENT_ID=adi-rest-api
-      - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
-      - DEMO_RASP_BACKEND=/app/rasp_backend
-      - DMS_HOST=https://rasp-dms.localhost
-      - DMS_PORT=443
-      - FRONTEND_URL=http://localhost:80
-      # TODO: check if this is only for fetch calls or also to redirect frontend to keycloak
-      # - KEYCLOAK_HOST=http://localhost:9080
-      - KEYCLOAK_HOST=http://keycloak:8080
-      - KEYCLOAK_PORT=443
-      - RASP_GENERATED_PROJECT=/generated
-      - REALM=myRealm
-      - SERVER_HOST=http://localhost
-      - SERVER_PORT=8082
-      - DB_SERVER=mongo
-      - DB_PORT=27017
-    depends_on:
-      mongo:
-        condition: service_healthy
-      # keycloak:
-      #   condition: service_healthy
-    restart: unless-stopped
+  # rasp-rbac:
+  #   image: 172.16.202.56:5000/rasp-rbac:latest
+  #   container_name: rasp-rbac
+  #   ports:
+  #     - "9082:8082"
+  #   entrypoint: [ "sh", "-c", "sleep 90 && exec java -jar app.jar" ]
+  #   networks:
+  #     - default
+  #   environment:
+  #     - CLIENT_ID=adi-rest-api
+  #     - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
+  #     - DEMO_RASP_BACKEND=/app/rasp_backend
+  #     - DMS_HOST=https://rasp-dms.localhost
+  #     - DMS_PORT=443
+  #     - FRONTEND_URL=http://localhost:80
+  #     # TODO: check if this is only for fetch calls or also to redirect frontend to keycloak
+  #     # - KEYCLOAK_HOST=http://localhost:9080
+  #     - KEYCLOAK_HOST=http://keycloak:8080
+  #     - KEYCLOAK_PORT=443
+  #     - RASP_GENERATED_PROJECT=/generated
+  #     - REALM=myRealm
+  #     - SERVER_HOST=http://localhost
+  #     - SERVER_PORT=8082
+  #     - DB_SERVER=mongo
+  #     - DB_PORT=27017
+  #   depends_on:
+  #     mongo:
+  #       condition: service_healthy
+  #     # keycloak:
+  #     #   condition: service_healthy
+  #   restart: unless-stopped
 
 volumes:
   mysql_data:
