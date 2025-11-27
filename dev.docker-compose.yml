@@ -1,6 +1,6 @@
 services:
   keycloakdb:
-    image: postgres:latest
+    image: postgres:17.7
     container_name: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -88,8 +88,8 @@ services:
       - keycloak
       - rasp-designer-be
     environment:
-      # - REACT_APP_FRONTEND_URL=http://172.16.202.55:3000
-      - MY_PREFIX_REACT_APP_NODEJS_BACKEND_URL=http://172.16.202.55:9000
+      # - REACT_APP_FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:3000
+      - MY_PREFIX_REACT_APP_NODEJS_BACKEND_URL=http://${HOST_IP:-127.0.0.1}:9000
       # - WDS_SOCKET_PORT=0
       # ! Where your built files live in the container
       - ASSET_DIR=/usr/share/nginx/html
@@ -106,16 +106,16 @@ services:
       # ! NEVER PROVIDE THIS IN PROD AS it makes TLS connections and HTTPS requests insecure by disabling certificate verification.
       - NODE_TLS_REJECT_UNAUTHORIZED=0
       - DATABASE_URL=mysql://root:root@mysql:3306/visual_app_design
-      - KEYCLOAK_URL=http://172.16.202.55:9080
+      - KEYCLOAK_URL=http://${HOST_IP:-127.0.0.1}:9080
       - REALM=myRealm
       - CLIENT_ID=adi-rest-api
       - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
-      - REDIRECT_URI=http://172.16.202.55:9000/auth/callback
-      - FRONTEND_URL=http://172.16.202.55
+      - REDIRECT_URI=http://${HOST_IP:-127.0.0.1}:9000/auth/callback
+      - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}
       - SERVER_HOSTNAME=localhost
       - SERVER_PORT=9000
-      - GENERATOR_URL=http://172.16.202.55:8082/api
-      - REACT_APP_URL=http://172.16.202.55:3001
+      - GENERATOR_URL=http://${HOST_IP:-127.0.0.1}:9082/api
+      - REACT_APP_URL=http://${HOST_IP:-127.0.0.1}:3001
     # Login flow
     # /login (backend) -> keycloak -> auth/callback (backend) -> frontend
     depends_on:
@@ -127,37 +127,37 @@ services:
       #   condition: service_started
     restart: unless-stopped
 
-  # rasp-rbac:
-  #   image: 172.16.202.56:5000/rasp-rbac:latest
-  #   container_name: rasp-rbac
-  #   ports:
-  #     - "9082:8082"
-  #   entrypoint: [ "sh", "-c", "sleep 90 && exec java -jar app.jar" ]
-  #   networks:
-  #     - default
-  #   environment:
-  #     - CLIENT_ID=adi-rest-api
-  #     - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
-  #     - DEMO_RASP_BACKEND=/app/rasp_backend
-  #     - DMS_HOST=https://rasp-dms.localhost
-  #     - DMS_PORT=443
-  #     - FRONTEND_URL=http://localhost:80
-  #     # TODO: check if this is only for fetch calls or also to redirect frontend to keycloak
-  #     # - KEYCLOAK_HOST=http://localhost:9080
-  #     - KEYCLOAK_HOST=http://keycloak:8080
-  #     - KEYCLOAK_PORT=443
-  #     - RASP_GENERATED_PROJECT=/generated
-  #     - REALM=myRealm
-  #     - SERVER_HOST=http://localhost
-  #     - SERVER_PORT=8082
-  #     - DB_SERVER=mongo
-  #     - DB_PORT=27017
-  #   depends_on:
-  #     mongo:
-  #       condition: service_healthy
-  #     # keycloak:
-  #     #   condition: service_healthy
-  #   restart: unless-stopped
+  rasp-rbac:
+    image: 172.16.202.56:5000/rasp-rbac:latest
+    container_name: rasp-rbac
+    ports:
+      - "9082:9082"
+    entrypoint: [ "sh", "-c", "sleep 15 && exec java -jar app.jar" ]
+    networks:
+      - default
+    environment:
+      - CLIENT_ID=adi-rest-api
+      - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
+      - DEMO_RASP_BACKEND=/app/rasp_backend
+      - DMS_HOST=https://rasp-dms.localhost
+      - DMS_PORT=443
+      - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:80
+      # TODO: check if this is only for fetch calls or also to redirect frontend to keycloak
+      # - KEYCLOAK_HOST=http://localhost:9080
+      - KEYCLOAK_HOST=http://${HOST_IP:-127.0.0.1}
+      - KEYCLOAK_PORT=9080
+      - RASP_GENERATED_PROJECT=/generated
+      - REALM=myRealm
+      - SERVER_HOST=http://${HOST_IP:-127.0.0.1}
+      - SERVER_PORT=9082
+      - DB_SERVER=mongo
+      - DB_PORT=27017
+    depends_on:
+      mongo:
+        condition: service_healthy
+      # keycloak:
+      #   condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   mysql_data:
