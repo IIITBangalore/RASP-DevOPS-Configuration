@@ -1,0 +1,86 @@
+services:
+  keycloakdb:
+    image: postgres:17.7
+    container_name: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: keycloak_db_user
+      POSTGRES_PASSWORD: keycloak_db_user_password
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U keycloak_db_user -d keycloak_db" ]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    command: start-dev --import-realm
+    ports:
+      - "9080:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloakdb:5432/keycloak_db
+      KC_DB_USERNAME: keycloak_db_user
+      KC_DB_PASSWORD: keycloak_db_user_password
+      KC_HEALTH_ENABLED: true
+    depends_on:
+      keycloakdb:
+        condition: service_healthy
+    volumes:
+      - ./dev_keycloak_realm_data:/opt/keycloak/data/import
+    healthcheck:
+      test: ['CMD-SHELL', '[ -f /tmp/HealthCheck.java ] || echo "public class HealthCheck { public static void main(String[] args) throws java.lang.Throwable { System.exit(java.net.HttpURLConnection.HTTP_OK == ((java.net.HttpURLConnection)new java.net.URL(args[0]).openConnection()).getResponseCode() ? 0 : 1); } }" > /tmp/HealthCheck.java && java /tmp/HealthCheck.java http://localhost:8080/health/live']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017" # Exposed so local rasp-rbac instances can reach it
+    networks:
+      - default
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  collab-server:
+    image: ${COLLAB_SERVER_IMAGE:-172.16.202.56:5000/collab-server:latest}
+    container_name: collab-server
+    ports:
+      - "8088:8088"
+    environment:
+      - DB_SERVER=mongo
+      - DB_PORT=27017
+      - KEYCLOAK_HOST=http://${HOST_IP:-127.0.0.1}
+      - KEYCLOAK_PORT=9080
+      - SERVER_PORT=8088
+      - SERVER_HOST=http://${HOST_IP:-127.0.0.1}
+      - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:80
+      - CLIENT_ID=backend-api
+      - CLIENT_SECRET=a59tA84xIEdwu3y8HCslTtcNntgKytvx
+      - REALM=myRealm
+      - DMS_PORT=8085
+      - DMS_HOST=http://${HOST_IP:-127.0.0.1}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  mongo_data:

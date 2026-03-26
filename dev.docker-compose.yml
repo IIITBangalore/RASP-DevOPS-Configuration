@@ -157,6 +157,9 @@ services:
         condition: service_healthy
       # keycloak:
       #   condition: service_healthy
+    volumes:
+      - ${GENERATED_PATH:-D:/RASP/generated}:/generated
+      - ${SOURCE_PROJECT_PATH:-D:/RASP/RASP-Backend-Generator}:/app/rasp_backend
     restart: unless-stopped
 
 volumes:

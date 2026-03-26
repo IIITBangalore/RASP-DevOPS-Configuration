@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  keycloakdb:
+    image: postgres:17.7
+    container_name: collab_keycloakdb
+    volumes:
+      - collab_postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: keycloak_db_user
+      POSTGRES_PASSWORD: keycloak_db_user_password
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U keycloak_db_user -d keycloak_db" ]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: collab_keycloak
+    command: start-dev --import-realm
+    ports:
+      - "8080:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloakdb:5432/keycloak_db
+      KC_DB_USERNAME: keycloak_db_user
+      KC_DB_PASSWORD: keycloak_db_user_password
+      KC_HEALTH_ENABLED: true
+    depends_on:
+      keycloakdb:
+        condition: service_healthy
+    volumes:
+      - ./dev_keycloak_realm_data:/opt/keycloak/data/import
+    healthcheck:
+      test: ['CMD-SHELL', '[ -f /tmp/HealthCheck.java ] || echo "public class HealthCheck { public static void main(String[] args) throws java.lang.Throwable { System.exit(java.net.HttpURLConnection.HTTP_OK == ((java.net.HttpURLConnection)new java.net.URL(args[0]).openConnection()).getResponseCode() ? 0 : 1); } }" > /tmp/HealthCheck.java && java /tmp/HealthCheck.java http://localhost:8080/health/live']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:latest
+    container_name: collab_mongodb
+    ports:
+      - "27017:27017" # Exposed so your local RBE can connect to it directly if necessary, or just keeping internal
+    volumes:
+      - collab_mongo_data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  collab-central-be:
+    build:
+      context: ../Collab-Server
+      dockerfile: Dockerfile
+    container_name: collab_central_be
+    ports:
+      - "8082:8082" 
+    environment:
+      - CLIENT_ID=adi-rest-api
+      - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
+      - DB_SERVER=mongodb
+      - DB_PORT=27017
+      - KEYCLOAK_HOST=http://${HOST_IP:-127.0.0.1}
+      - KEYCLOAK_PORT=8080
+      - REALM=myRealm
+      - SERVER_HOST=http://${HOST_IP:-127.0.0.1}
+      - SERVER_PORT=8082
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  collab_postgres_data:
+  collab_mongo_data:
