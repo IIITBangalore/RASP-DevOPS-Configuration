@@ -38,9 +38,9 @@ services:
     healthcheck:
       test: ['CMD-SHELL', '[ -f /tmp/HealthCheck.java ] || echo "public class HealthCheck { public static void main(String[] args) throws java.lang.Throwable { System.exit(java.net.HttpURLConnection.HTTP_OK == ((java.net.HttpURLConnection)new java.net.URL(args[0]).openConnection()).getResponseCode() ? 0 : 1); } }" > /tmp/HealthCheck.java && java /tmp/HealthCheck.java http://localhost:8080/health/live']
       interval: 5s
-      timeout: 5s
+      timeout: 20s
       retries: 30
-
+    
   mongo:
     image: mongo:latest
     container_name: mongo
@@ -53,7 +53,7 @@ services:
     healthcheck:
       test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 3s
-      timeout: 2s
+      timeout: 20s
       retries: 5
       start_period: 5s
     restart: unless-stopped
@@ -72,13 +72,47 @@ services:
       - SERVER_HOST=http://${HOST_IP:-127.0.0.1}
       - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:80
       - CLIENT_ID=backend-api
-      - CLIENT_SECRET=a59tA84xIEdwu3y8HCslTtcNntgKytvx
+      - CLIENT_SECRET=pUY0svMeiBpfx4oUfuvq4NLWijST1fiz
       - REALM=myRealm
+      - DEMO_RASP_BACKEND=/app/rasp_backend
       - DMS_PORT=8085
       - DMS_HOST=http://${HOST_IP:-127.0.0.1}
+      - RASP_GENERATED_PROJECT=/generated
+      - INTERNAL_TOKEN=qwewqdwqdewq
     depends_on:
       mongo:
         condition: service_healthy
+    restart: unless-stopped
+
+  rasp-rbac:
+    image: ${RBAC_IMAGE:-172.16.202.56:5000/rasp-rbac:latest}
+    container_name: rasp-rbac
+    ports:
+      - "9082:9082"
+    entrypoint: [ "sh", "-c", "sleep 15 && exec java -jar app.jar" ]
+    environment:
+      - CLIENT_ID=backend-api
+      - CLIENT_SECRET=pUY0svMeiBpfx4oUfuvq4NLWijST1fiz
+      - DEMO_RASP_BACKEND=/app/rasp_backend
+      - DMS_HOST=http://${HOST_IP:-127.0.0.1}
+      - DMS_PORT=8085
+      - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:80
+      - KEYCLOAK_HOST=http://${HOST_IP:-127.0.0.1}
+      - KEYCLOAK_PORT=9080
+      - RASP_GENERATED_PROJECT=/generated
+      - REALM=myRealm
+      - SERVER_HOST=http://${HOST_IP:-127.0.0.1}
+      - SERVER_PORT=9082
+      - DB_SERVER=mongo
+      - DB_PORT=27017
+    depends_on:
+      mongo:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    volumes:
+      - ${GENERATED_PATH:-/opt/rasp/generated}:/generated
+      - ${SOURCE_PROJECT_PATH:-/opt/rasp/rasp_backend_source}:/app/rasp_backend
     restart: unless-stopped
 
 volumes:

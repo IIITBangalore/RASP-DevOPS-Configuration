@@ -300,7 +300,7 @@
           "attributes": {}
         }
       ],
-      "adi-rest-api": [
+      "backend-api": [
         {
           "id": "6cbd3f89-79f6-4d93-8ae5-6675b6ceaf52",
           "name": "uma_protection",
@@ -470,12 +470,12 @@
   "users": [
     {
       "id": "f56a46d1-4b7f-4932-960f-47fe317805a5",
-      "username": "service-account-adi-rest-api",
+      "username": "service-account-backend-api",
       "emailVerified": false,
       "enabled": true,
       "createdTimestamp": 1754541204074,
       "totp": false,
-      "serviceAccountClientId": "adi-rest-api",
+      "serviceAccountClientId": "backend-api",
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -492,7 +492,7 @@
           "view-realm",
           "view-clients"
         ],
-        "adi-rest-api": [
+        "backend-api": [
           "uma_protection"
         ]
       },
@@ -627,7 +627,7 @@
     },
     {
       "id": "d29f5994-2dec-4657-b1cf-3ef720239500",
-      "clientId": "adi-rest-api",
+      "clientId": "backend-api",
       "name": "demo client for rest api",
       "description": "",
       "rootUrl": "",
@@ -637,11 +637,11 @@
       "enabled": true,
       "alwaysDisplayInConsole": true,
       "clientAuthenticatorType": "client-secret",
-      "secret": "RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF",
+      "secret": "pUY0svMeiBpfx4oUfuvq4NLWijST1fiz",
       "redirectUris": [
-        "http://172.16.129.203:9000/*",
-        "http://localhost:9000/*",
-        "http://127.0.0.1:9000/*"
+        "http://172.16.202.56:9082/*",
+        "http://172.16.202.56:8001/*",
+        "http://172.16.202.56:8101/*"
       ],
       "webOrigins": [
         "*"
@@ -650,8 +650,8 @@
       "bearerOnly": false,
       "consentRequired": false,
       "standardFlowEnabled": true,
-      "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": true,
       "publicClient": false,
@@ -664,7 +664,7 @@
         "backchannel.logout.session.required": "true",
         "standard.token.exchange.enabled": "false",
         "frontchannel.logout.session.required": "true",
-        "post.logout.redirect.uris": "http://172.16.129.203:9000##http://localhost:9000##http://127.0.0.1:9000",
+        "post.logout.redirect.uris": "http://172.16.202.56:9082##http://172.16.202.56:8001##http://172.16.202.56:8101",
         "oauth2.device.authorization.grant.enabled": "false",
         "display.on.consent.screen": "false",
         "backchannel.logout.revoke.offline.tokens": "false"
@@ -694,7 +694,7 @@
         "resources": [
           {
             "name": "Default Resource",
-            "type": "urn:adi-rest-api:resources:default",
+            "type": "urn:backend-api:resources:default",
             "ownerManagedAccess": false,
             "attributes": {},
             "uris": [

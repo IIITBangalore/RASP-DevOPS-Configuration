@@ -6,11 +6,12 @@ services:
       - "${PORT_DB:-3306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: visual_app_design
+      MYSQL_DATABASE: deployment_db_collab
     volumes:
-      - ${PROJECT_NAME}_mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql # ✅ FIXED
     healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot || exit 1" ]
+      test:
+        ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot || exit 1"]
       interval: 3s
       timeout: 2s
       retries: 5
@@ -18,14 +19,15 @@ services:
     restart: unless-stopped
 
   rasp-designer-fe:
-    image: 172.16.202.56:5000/rasp-designer-fe:latest
+    image: 172.16.202.56:5000/rasp-designer-fe:latest1
     container_name: ${PROJECT_NAME}-fe
     ports:
       - "${PORT_FE:-80}:80"
     depends_on:
       - rasp-designer-be
     environment:
-      - MY_PREFIX_REACT_APP_NODEJS_BACKEND_URL=http://${HOST_IP:-127.0.0.1}:${PORT_BE:-9000}
+      # - MY_PREFIX_REACT_APP_NODEJS_BACKEND_URL=http://${HOST_IP:-127.0.0.1}:${PORT_BE:-9000}
+      - MY_PREFIX_REACT_APP_NODEJS_BACKEND_URL=http://localhost:${PORT_BE:-9000}
       - ASSET_DIR=/usr/share/nginx/html
       - APP_PREFIX=MY_PREFIX_
     restart: unless-stopped
@@ -37,68 +39,199 @@ services:
       - "${PORT_BE:-9000}:8000"
     environment:
       - NODE_TLS_REJECT_UNAUTHORIZED=0
-      - DATABASE_URL=mysql://root:root@${PROJECT_NAME}-mysql:3306/visual_app_design
-      - KEYCLOAK_URL=http://${HOST_IP:-127.0.0.1}:9080
+      - DATABASE_URL=mysql://root:root@${PROJECT_NAME}-mysql:3306/deployment_db_collab
+      # - DATABASE_URL=mysql://root:root@$172.17.0.1:8002/deployment_db_collab
+      - KEYCLOAK_URL=http://${CENTRAL_IP:-172.16.202.56}:9080
       - REALM=myRealm
-      - CLIENT_ID=myClient
-      - CLIENT_SECRET=ucdSNdfI63rWmpsDz2uUKDpODa8K7oz5
-      - REDIRECT_URI=http://${HOST_IP:-127.0.0.1}:${PORT_BE:-9000}/auth/callback
-      - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:${PORT_FE:-80}
+      - CLIENT_ID=backend-api
+      - CLIENT_SECRET=pUY0svMeiBpfx4oUfuvq4NLWijST1fiz
+      # - REDIRECT_URI=http://${HOST_IP:-127.0.0.1}:${PORT_BE:-9000}/auth/callback
+      - REDIRECT_URI=http://localhost:${PORT_BE:-9000}/auth/callback
+      # - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:${PORT_FE:-80}
+      - FRONTEND_URL=http://localhost:${PORT_FE:-80}
       - SERVER_HOSTNAME=${PROJECT_NAME}-localhost
       - SERVER_PORT=8000
-      - GENERATOR_URL=http://${HOST_IP:-127.0.0.1}:${PORT_RBAC:-9082}/api
-      - COLLABORATION_URL=http://${HOST_IP:-127.0.0.1}:8088/api
+      - GENERATOR_URL=http://${CENTRAL_IP:-172.16.202.56}:9082/api
+      - COLLABORATION_URL=http://${CENTRAL_IP:-172.16.202.56}:8088/api
       - REACT_APP_URL=http://${HOST_IP:-127.0.0.1}:3001
       - INTERNAL_TOKEN=qwewqdwqdewq
       - RASP_VERSION=0.8
+      - WORKFLOW_HOST=${PROJECT_NAME}-workflow
+      - WORKFLOW_PORT=9000
+      - WORKFLOW_IDS=[]
+      - GENERATED_WORKFLOW_URL=http://${PROJECT_NAME}-workflow:9000/api
     depends_on:
       mysql:
         condition: service_healthy
     restart: unless-stopped
 
-  rasp-rbac:
-    image: 172.16.202.56:5000/rasp-rbac:latest
-    container_name: ${PROJECT_NAME}-rbac
-    ports:
-      - "${PORT_RBAC:-9082}:9082"
-    entrypoint: [ "sh", "-c", "sleep 15 && exec java -jar app.jar" ]
-    environment:
-      - CLIENT_ID=adi-rest-api
-      - CLIENT_SECRET=RnxVQ0TTbwETlZeN7k3lXZB78fFUt0sF
-      - DEMO_RASP_BACKEND=/app/rasp_backend
-      - DMS_HOST=http://${HOST_IP:-127.0.0.1}
-      - DMS_PORT=${PORT_DMS:-8085}
-      - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:${PORT_FE:-80}
-      - KEYCLOAK_HOST=http://${HOST_IP:-127.0.0.1}
-      - KEYCLOAK_PORT=9080
-      - RASP_GENERATED_PROJECT=/generated
-      - REALM=myRealm
-      - SERVER_HOST=http://${HOST_IP:-127.0.0.1}
-      - SERVER_PORT=9082
-      # Point to central mongo instance using host IP.
-      - DB_SERVER=${HOST_IP:-host.docker.internal}
-      - DB_PORT=27017
-    volumes:
-      - ${GENERATED_PATH:-D:/RASP/generated}/${PROJECT_NAME}:/generated
-      - ${SOURCE_PROJECT_PATH:-D:/RASP/RASP-Backend-Generator}:/app/rasp_backend
-    restart: unless-stopped
-
   dms-rasp:
     image: 172.16.202.56:5000/dms-rasp:latest
-    build:
-      context: ../DMS-RASP
-      dockerfile: Dockerfile
     container_name: ${PROJECT_NAME}-dms
     ports:
       - "${PORT_DMS:-8085}:8085"
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://${HOST_IP:-host.docker.internal}:27017/traveler_db
-      - KEYCLOAK_AUTH_SERVER_URL=http://${HOST_IP:-127.0.0.1}:9080/auth
+      - SPRING_DATA_MONGODB_URI=mongodb://${CENTRAL_IP:-172.16.202.56}:27017/traveler_db
+      - KEYCLOAK_AUTH_SERVER_URL=http://${CENTRAL_IP:-172.16.202.56}:9080/auth
       - FILE_UPLOAD_DIR=/app/uploads
     volumes:
-      - ${PROJECT_NAME}_dms_uploads:/app/uploads
+      - dms_uploads:/app/uploads # ✅ FIXED
     restart: unless-stopped
 
+  vault:
+    image: hashicorp/vault:latest
+    container_name: ${PROJECT_NAME}-vault
+    ports:
+      - "${PORT_VAULT}:8200"
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=myroot
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    command: vault server -dev -dev-root-token-id=myroot
+    volumes:
+      - vault_data:/vault/file # ✅ persistence
+    restart: unless-stopped
+
+  workflow-service:
+    image: 172.16.202.56:5000/workflow-service:latest
+    container_name: ${PROJECT_NAME}-workflow
+    ports:
+      - "${PORT_WORKFLOW}:9000"
+    environment:
+      - VAULT_ADDR=http://${PROJECT_NAME}-vault:8200
+      - VAULT_TOKEN=myroot
+
+      # ✅ CENTRAL MONGO (correct)
+      - MONGO_URI=mongodb://${CENTRAL_IP}:27017
+      - MONGO_PORT=27017
+      - MONGO_HOST=${CENTRAL_IP}
+
+      - CHEKPOINTERS_DB=langgraph_memory
+      - COLLECTION_NAME=checkpoints
+      - WORKFLOW_DB=workflows
+      - EXECUTIONS_COLLECTION=executions
+    depends_on:
+      - vault
+    restart: unless-stopped
 volumes:
-  ${PROJECT_NAME}_mysql_data:
-  ${PROJECT_NAME}_dms_uploads:
+  mysql_data: # ✅ FIXED
+  dms_uploads: # ✅ FIXED
+  vault_data:
+# version: "3.9"
+
+# services:
+#   mysql:
+#     image: mysql:latest
+#     container_name: ${PROJECT_NAME}-mysql
+#     ports:
+#       - "${PORT_DB:-3306}:3306"
+#     environment:
+#       MYSQL_ROOT_PASSWORD: root
+#       MYSQL_DATABASE: deployment_db_collab
+#     volumes:
+#       - mysql_data:/var/lib/mysql
+#     healthcheck:
+#       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot || exit 1"]
+#       interval: 3s
+#       timeout: 2s
+#       retries: 5
+#     restart: unless-stopped
+
+#   rasp-designer-fe:
+#     image: 172.16.202.56:5000/rasp-designer-fe:latest
+#     container_name: ${PROJECT_NAME}-fe
+#     ports:
+#       - "${PORT_FE:-80}:80"
+#     environment:
+#       - MY_PREFIX_REACT_APP_NODEJS_BACKEND_URL=http://${HOST_IP:-127.0.0.1}:${PORT_BE:-9000}
+#       - APP_PREFIX=MY_PREFIX_
+#     depends_on:
+#       - rasp-designer-be
+#     restart: unless-stopped
+
+#   rasp-designer-be:
+#     image: 172.16.202.56:5000/rasp-designer-be:latest
+#     container_name: ${PROJECT_NAME}-be
+#     ports:
+#       - "${PORT_BE:-9000}:8000"
+#     environment:
+#       - DATABASE_URL=mysql://root:root@${PROJECT_NAME}-mysql:3306/deployment_db_collab
+
+#       # ✅ FIXED (central Keycloak)
+#       - KEYCLOAK_URL=http://${CENTRAL_IP}:9080
+
+#       - REALM=myRealm
+#       - CLIENT_ID=backend-api
+#       - CLIENT_SECRET=pUY0svMeiBpfx4oUfuvq4NLWijST1fiz
+
+#       - REDIRECT_URI=http://${HOST_IP:-127.0.0.1}:${PORT_BE:-9000}/auth/callback
+#       - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:${PORT_FE:-80}
+
+#       - SERVER_HOST=${PROJECT_NAME}-be
+#       - SERVER_PORT=8000
+
+#       # ✅ central services
+#       - GENERATOR_URL=http://${CENTRAL_IP}:9082/api
+#       - COLLABORATION_URL=http://${CENTRAL_IP}:8088/api
+
+#       - INTERNAL_TOKEN=qwewqdwqdewq
+#       - RASP_VERSION=0.8
+
+#       - WORKFLOW_HOST=${PROJECT_NAME}-workflow
+#       - WORKFLOW_PORT=9000
+#       - GENERATED_WORKFLOW_URL=http://${PROJECT_NAME}-workflow:9000/api
+#     depends_on:
+#       mysql:
+#         condition: service_healthy
+#     restart: unless-stopped
+
+#   dms-rasp:
+#     image: 172.16.202.56:5000/dms-rasp:latest
+#     container_name: ${PROJECT_NAME}-dms
+#     ports:
+#       - "${PORT_DMS:-8085}:8085"
+#     environment:
+#       - SPRING_DATA_MONGODB_URI=mongodb://${CENTRAL_IP}:27017/traveler_db
+#       - KEYCLOAK_AUTH_SERVER_URL=http://${CENTRAL_IP}:9080
+#       - FILE_UPLOAD_DIR=/app/uploads
+#     volumes:
+#       - dms_uploads:/app/uploads
+#     restart: unless-stopped
+
+#   vault:
+#     image: hashicorp/vault:latest
+#     container_name: ${PROJECT_NAME}-vault
+#     ports:
+#       - "${PORT_VAULT:-8200}:8200"
+#     environment:
+#       - VAULT_DEV_ROOT_TOKEN_ID=myroot
+#       - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+#     command: vault server -dev
+#     volumes:
+#       - vault_data:/vault/file
+#     restart: unless-stopped
+
+#   workflow-service:
+#     image: 172.16.202.56:5000/workflow-service:latest
+#     container_name: ${PROJECT_NAME}-workflow
+#     ports:
+#       - "${PORT_WORKFLOW:-9000}:9000"
+#     environment:
+#       - VAULT_ADDR=http://${PROJECT_NAME}-vault:8200
+#       - VAULT_TOKEN=myroot
+
+#       # ✅ central mongo
+#       - MONGO_URI=mongodb://${CENTRAL_IP}:27017
+#       - MONGO_HOST=${CENTRAL_IP}
+#       - MONGO_PORT=27017
+
+#       - WORKFLOW_DB=workflows
+#     depends_on:
+#       - vault
+#     restart: unless-stopped
+
+# volumes:
+#   mysql_data:
+#   dms_uploads:
+#   vault_data:

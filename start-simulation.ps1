@@ -1,76 +1,87 @@
 param(
-    [int]$numUsers = 2
+    [int]$numUsers = 2,
+    [string]$CentralIP = "172.16.202.56"
 )
 
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host " Starting Distributed Simulation Setup" -ForegroundColor Cyan
+Write-Host " Starting Distributed Simulation Setup"    -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Get the current IPv4 address
-$ipInfo = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { 
-    $_.InterfaceAlias -notlike "vEthernet*" -and 
-    $_.InterfaceAlias -notlike "Loopback*" -and 
-    $_.IPAddress -notlike "169.254.*" 
+# ── Detect host IP ──────────────────────────────────────────
+$ipInfo = Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
+    $_.InterfaceAlias -notlike "vEthernet*" -and
+    $_.InterfaceAlias -notlike "Loopback*" -and
+    $_.IPAddress -notlike "169.254.*"
 } | Select-Object -First 1
 
-$currentIP = $ipInfo.IPAddress
+$currentIP = if ($ipInfo) { $ipInfo.IPAddress } else { "127.0.0.1" }
+Write-Host "Detected Host IP: $currentIP" -ForegroundColor Yellow
+Write-Host "Central Server:   $CentralIP" -ForegroundColor Yellow
 
-if (-not $currentIP) {
-    Write-Host "Warning: Could not detect IP address. Defaulting to 127.0.0.1" -ForegroundColor Yellow
-    $currentIP = "127.0.0.1"
-} else {
-    Write-Host "Detected Host IP: $currentIP" -ForegroundColor Yellow
-}
+$env:HOST_IP    = $currentIP
+$env:CENTRAL_IP = $CentralIP
 
-$env:HOST_IP = $currentIP
+# ── Step 1: Start Central Server ────────────────────────────
+Write-Host "`nStep 1: Starting Central Server components ..." -ForegroundColor Yellow
+docker compose -f docker-compose.central.yml up -d
 
-Write-Host "Step 1: Starting Central Server components..." -ForegroundColor Yellow
-docker-compose -f docker-compose.central.yml up -d
+Write-Host "Waiting for central server to initialize ..."
+Start-Sleep -Seconds 15
 
-Write-Host "Waiting a moment for central server DBs to initialize..."
-Start-Sleep -Seconds 10
+# ── Step 2: Start user instances ────────────────────────────
+Write-Host "`nStep 2: Starting $numUsers Local Instances ..." -ForegroundColor Yellow
 
-# Base ports for local instances
-$basePortFE = 8080
-$basePortBE = 9000
-$basePortDB = 3306
-$basePortRBAC = 9082
-$basePortDMS = 8085
-
-Write-Host ""
-Write-Host "Step 2: Starting $numUsers Local Instances dynamically..." -ForegroundColor Yellow
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ComposePath = Join-Path $ScriptDir "docker-compose.local.yml"
 
 for ($i = 1; $i -le $numUsers; $i++) {
     $projectName = "user$i"
-    $portFE = $basePortFE + $i
-    $portBE = $basePortBE + $i
-    $portDB = $basePortDB + $i
-    $portRBAC = $basePortRBAC + $i
-    $portDMS = $basePortDMS + $i
+    $basePort    = 8000 + (($i - 1) * 100)
+    $portFE      = $basePort
+    $portBE      = $basePort + 1
+    $portDB      = $basePort + 2
+    $portDMS     = $basePort + 3
 
-    Write-Host " -> Starting Local Instance for User $i ($projectName)" -ForegroundColor Green
-    Write-Host "    Frontend Port: $portFE"
-    Write-Host "    Backend Port:  $portBE"
-    Write-Host "    MySQL Port:    $portDB"
-    Write-Host "    RBAC Port:     $portRBAC"
-    Write-Host "    DMS Port:      $portDMS"
-    Write-Host "    HOST_IP:       $currentIP"
+    Write-Host "`n -> Starting Instance: $projectName" -ForegroundColor Green
+    Write-Host "    FE=$portFE  BE=$portBE  DB=$portDB  DMS=$portDMS"
 
-    $env:PROJECT_NAME = $projectName
-    $env:PORT_FE = $portFE
-    $env:PORT_BE = $portBE
-    $env:PORT_DB = $portDB
-    $env:PORT_RBAC = $portRBAC
-    $env:PORT_DMS = $portDMS
+    # Create instance .env
+    $InstanceDir = Join-Path $ScriptDir "instances\$projectName"
+    New-Item -ItemType Directory -Force -Path $InstanceDir | Out-Null
 
-    # Run docker-compose for the specific user instance (forcing build for dynamic Dockerfiles)
-    docker-compose -p $projectName -f docker-compose.local.yml up -d --build
+    $EnvFile = Join-Path $InstanceDir ".env"
+    @"
+PROJECT_NAME=$projectName
+HOST_IP=$currentIP
+CENTRAL_IP=$CentralIP
+PORT_FE=$portFE
+PORT_BE=$portBE
+PORT_DB=$portDB
+PORT_DMS=$portDMS
+GENERATED_PATH=D:/RASP/generated
+SOURCE_PROJECT_PATH=D:/RASP/RASP-Backend-Generator
+"@ | Set-Content -Path $EnvFile -Encoding UTF8
+
+    docker compose -p $projectName --env-file $EnvFile -f $ComposePath up -d
 }
 
+# ── Summary ─────────────────────────────────────────────────
 Write-Host ""
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host " Simulation started successfully!" -ForegroundColor Green
-Write-Host " Central server (Collab) running on port 8088." -ForegroundColor Green
-Write-Host " $numUsers dynamic local user instances are running." -ForegroundColor Green
+Write-Host " Simulation started successfully!"         -ForegroundColor Green
 Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host " Central Services:"                        -ForegroundColor Yellow
+Write-Host "   Keycloak:  http://${currentIP}:9080"
+Write-Host "   Collab:    http://${currentIP}:8088"
+Write-Host "   RBAC:      http://${currentIP}:9082"
+Write-Host "   MongoDB:   ${currentIP}:27017"
+Write-Host ""
+Write-Host " User Instances:" -ForegroundColor Yellow
+
+for ($i = 1; $i -le $numUsers; $i++) {
+    $bp = 8000 + (($i - 1) * 100)
+    Write-Host "   user$i  ->  FE=http://${currentIP}:$bp  BE=http://${currentIP}:$($bp+1)"
+}
+Write-Host "========================================="
