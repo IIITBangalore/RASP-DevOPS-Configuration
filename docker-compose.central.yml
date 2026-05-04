@@ -40,7 +40,8 @@ services:
       interval: 5s
       timeout: 20s
       retries: 30
-    
+    restart: unless-stopped
+
   mongo:
     image: mongo:latest
     container_name: mongo
@@ -59,7 +60,7 @@ services:
     restart: unless-stopped
 
   collab-server:
-    image: ${COLLAB_SERVER_IMAGE:-172.16.202.56:5000/collab-server:latest1}
+    image: ${COLLAB_SERVER_IMAGE:-172.16.202.56:5000/collab-server:latest}
     container_name: collab-server
     ports:
       - "8088:8088"
@@ -115,6 +116,80 @@ services:
       - ${SOURCE_PROJECT_PATH:-/opt/rasp/rasp_backend_source}:/app/rasp_backend
     restart: unless-stopped
 
+  # ----------------------------------------------------------
+  # IR-To-Code — AST / Code Generation Service (Java 17 / Spring Boot)
+  # Builds from the IR-To-Code repo source.
+  # Set IR_TO_CODE_IMAGE to use a pre-built registry image instead.
+  # ----------------------------------------------------------
+  ir-to-code:
+    image: ${IR_TO_CODE_IMAGE:-172.16.202.56:5000/ir-to-code:latest}
+    build:
+      context: ${IR_TO_CODE_BUILD_CONTEXT:-../IR-To-Code}
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: ir-to-code
+    restart: unless-stopped
+    environment:
+      # Spring Boot server port (matches application.yml)
+      SERVER_PORT: "8082"
+      GENERATED_PROJECT: "/app/generated-project"
+      # JVM container-aware flags — override via IR_TO_CODE_JAVA_OPTS if needed
+      JAVA_OPTS: "${IR_TO_CODE_JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom}"
+    ports:
+      - "${IR_TO_CODE_PORT:-8082}:8082"
+    volumes:
+      # Mount generated project output to a named volume so it is
+      # accessible to other services (e.g. rasp-rbac) if needed
+      - ir_to_code_generated:/app/generated-project
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/api/v1/generator/health 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - default
+
+  # ----------------------------------------------------------
+  # AI Code Generation Service (Python / FastAPI + LangGraph)
+  # Builds from the AI-Code-Generation repo source.
+  # Set AI_CODEGEN_IMAGE to use a pre-built registry image instead.
+  # ----------------------------------------------------------
+  ai-codegen:
+    image: ${AI_CODEGEN_IMAGE:-172.16.202.56:5000/ai-codegen:latest}
+    build:
+      context: ${AI_CODEGEN_BUILD_CONTEXT:-../AI-Code-Generation}
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: ai-codegen
+    restart: unless-stopped
+    env_file:
+      # Create this file on the server from AI-Code-Generation/.env.example
+      - ${AI_CODEGEN_ENV_FILE:-/home/darshan/rasp-central/example.env}
+    environment:
+      # Always point to the shared platform MongoDB — overrides any .env value
+      MONGO_HOST: mongo
+      MONGO_PORT: "27017"
+      # Point at the AST service container on the Docker-internal network
+      JAVA_AST_CODE_GENERATOR_HOST: http://ir-to-code
+      JAVA_AST_CODE_GENERATOR_PORT: "8082"
+    ports:
+      - "${AI_CODEGEN_PORT:-9000}:9000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      ir-to-code:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/docs')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - default
+
 volumes:
   postgres_data:
   mongo_data:
+  ir_to_code_generated:

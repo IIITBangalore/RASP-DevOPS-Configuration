@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   rasp-designer-fe:
-    image: 172.16.202.56:5000/rasp-designer-fe:latest1
+    image: 172.16.202.56:5000/rasp-designer-fe:latest
     container_name: ${PROJECT_NAME}-fe
     ports:
       - "${PORT_FE:-80}:80"
@@ -41,18 +41,18 @@ services:
       - NODE_TLS_REJECT_UNAUTHORIZED=0
       - DATABASE_URL=mysql://root:root@${PROJECT_NAME}-mysql:3306/deployment_db_collab
       # - DATABASE_URL=mysql://root:root@$172.17.0.1:8002/deployment_db_collab
-      - KEYCLOAK_URL=http://${CENTRAL_IP:-172.16.202.56}:9080
+      - KEYCLOAK_URL=http://${CENTRAL_IP:-172.16.193.5}:9080
       - REALM=myRealm
-      - CLIENT_ID=backend-api
-      - CLIENT_SECRET=pUY0svMeiBpfx4oUfuvq4NLWijST1fiz
+      - CLIENT_ID=myClient
+      - CLIENT_SECRET=ZOxNXBXKOYBSPpTli1rpjLOGJSu2vHda
       # - REDIRECT_URI=http://${HOST_IP:-127.0.0.1}:${PORT_BE:-9000}/auth/callback
       - REDIRECT_URI=http://localhost:${PORT_BE:-9000}/auth/callback
       # - FRONTEND_URL=http://${HOST_IP:-127.0.0.1}:${PORT_FE:-80}
       - FRONTEND_URL=http://localhost:${PORT_FE:-80}
       - SERVER_HOSTNAME=${PROJECT_NAME}-localhost
       - SERVER_PORT=8000
-      - GENERATOR_URL=http://${CENTRAL_IP:-172.16.202.56}:9082/api
-      - COLLABORATION_URL=http://${CENTRAL_IP:-172.16.202.56}:8088/api
+      - GENERATOR_URL=http://${CENTRAL_IP:-172.16.193.5}:9082/api
+      - COLLABORATION_URL=http://${CENTRAL_IP:-172.16.193.5}:8088/api
       - REACT_APP_URL=http://${HOST_IP:-127.0.0.1}:3001
       - INTERNAL_TOKEN=qwewqdwqdewq
       - RASP_VERSION=0.8
@@ -60,6 +60,7 @@ services:
       - WORKFLOW_PORT=9000
       - WORKFLOW_IDS=[]
       - GENERATED_WORKFLOW_URL=http://${PROJECT_NAME}-workflow:9000/api
+      - CODEGEN_AI_URL=http://${CENTRAL_IP:-172.16.193.5}:9000/api/subgraph
     depends_on:
       mysql:
         condition: service_healthy
@@ -71,8 +72,8 @@ services:
     ports:
       - "${PORT_DMS:-8085}:8085"
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://${CENTRAL_IP:-172.16.202.56}:27017/traveler_db
-      - KEYCLOAK_AUTH_SERVER_URL=http://${CENTRAL_IP:-172.16.202.56}:9080/auth
+      - SPRING_DATA_MONGODB_URI=mongodb://${CENTRAL_IP:-172.16.193.5}:27017/traveler_db
+      - KEYCLOAK_AUTH_SERVER_URL=http://${CENTRAL_IP:-172.16.193.5}:9080/auth
       - FILE_UPLOAD_DIR=/app/uploads
     volumes:
       - dms_uploads:/app/uploads # ✅ FIXED
