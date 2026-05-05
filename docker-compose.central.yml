@@ -151,6 +151,23 @@ services:
       - default
 
   # ----------------------------------------------------------
+  # Vault Service (used by AI-Code-Generation)
+  # ----------------------------------------------------------
+  vault:
+    image: hashicorp/vault:1.13.3
+    container_name: vault
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-myroot}
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - default
+
+  # ----------------------------------------------------------
   # AI Code Generation Service (Python / FastAPI + LangGraph)
   # Builds from the AI-Code-Generation repo source.
   # Set AI_CODEGEN_IMAGE to use a pre-built registry image instead.
@@ -173,12 +190,17 @@ services:
       # Point at the AST service container on the Docker-internal network
       JAVA_AST_CODE_GENERATOR_HOST: http://ir-to-code
       JAVA_AST_CODE_GENERATOR_PORT: "8082"
+      # Point at the compose-internal Vault service
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: ${VAULT_TOKEN:-myroot}
     ports:
       - "${AI_CODEGEN_PORT:-9000}:9000"
     depends_on:
       mongo:
         condition: service_healthy
       ir-to-code:
+        condition: service_started
+      vault:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/docs')\" || exit 1"]
